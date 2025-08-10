@@ -1,0 +1,64 @@
+:root {
+  --cursor-size: 50px; /* change to suit */
+  --cursor-border: 2px; /* thickness */
+  --cursor-color: rgba(226, 150, 150, 0.85);
+  --cursor-ring:  rgba(226, 150, 150, 0.85);
+}
+
+
+html, body {
+  cursor: none;
+}
+
+.cursor-circle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--cursor-size);
+  height: var(--cursor-size);
+  border-radius: 50%;
+  pointer-events: none; 
+  z-index: 9999;
+  transform: translate3d(-9999px, -9999px, 0);
+
+  /* visual */
+  background: transparent;
+  box-shadow: 0 0 0 0 var(--cursor-color);
+  border: var(--cursor-border) solid var(--cursor-color);
+}
+
+.cursor-circle::after {
+  content: "";
+  position: absolute;
+  inset: -8px; 
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 4px var(--cursor-ring);
+  opacity: 0.0;
+  transform: scale(0.9);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+
+.cursor-hidden {
+  opacity: 0;
+  transition: opacity 220ms linear;
+}
+
+
+.cursor-pressed {
+  transform-origin: center;
+  transition: transform 120ms ease;
+  transform: scale(0.76) translate3d(0, 0, 0);
+}
+
+
+.cursor-pressed::after {
+  opacity: 0.9;
+  transform: scale(1.12);
+}
+
+
+a:hover ~ .cursor-circle, button:hover ~ .cursor-circle, .hover-target:hover ~ .cursor-circle {
+  transform: scale(1.25) translate3d(0, 0, 0);
+}
