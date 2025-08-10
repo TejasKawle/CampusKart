@@ -21,12 +21,12 @@ const ProductCard = ({ id, image, title, price, location }) => {
         <div className="p-4 flex flex-col justify-between h-36">
           <div>
             <h2 className="text-lg font-semibold text-white truncate">
-              {title}
+             Product : {title}
             </h2>
-            <p className="text-sm text-gray-400">{location}</p>
+            <p className="text-sm text-gray-400"> Location : {location}</p>
           </div>
           <div className="flex items-center justify-between mt-3">
-            <span className="text-green-400 font-bold text-xl">{price} 💸</span>
+            <span className="text-green-400 font-bold text-xl"> Price : {price} 💸</span>
             <button className="px-3 py-1 bg-cyan-600 text-sm rounded-md text-white font-semibold hover:bg-cyan-700 transition">
               View
             </button>

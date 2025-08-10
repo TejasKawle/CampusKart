@@ -6,10 +6,6 @@
 }
 
 
-html, body {
-  cursor: none;
-}
-
 .cursor-circle {
   position: fixed;
   top: 0;
