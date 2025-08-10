@@ -2,11 +2,12 @@ import { Outlet } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Sparkles, Zap, Heart, Code, Users, Shield } from "lucide-react";
 import NavBar from "./NavBar";
+import { useState } from "react";
 
 const Layout = () => {
   const { scrollY } = useScroll();
   const footerY = useTransform(scrollY, [0, 300], [0, -20]);
-
+  const [searchTerm, setSearchTerm] = useState("");
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -98,7 +99,7 @@ const Layout = () => {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative z-50"
       >
-        <NavBar />
+        <NavBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
       </motion.div>
 
       {/* Main Content */}
@@ -108,7 +109,7 @@ const Layout = () => {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="flex-grow relative z-10"
       >
-        <Outlet />
+        <Outlet context={{ searchTerm }} />
       </motion.main>
 
       {/* Futuristic Footer */}

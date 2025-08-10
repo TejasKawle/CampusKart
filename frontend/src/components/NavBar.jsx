@@ -13,7 +13,7 @@ import {
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
-const NavBar = () => {
+const NavBar = ({ searchTerm, setSearchTerm }) => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -136,6 +136,8 @@ const NavBar = () => {
                 <input
                   type="text"
                   placeholder="Search for textbooks, laptops, phones..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                   className="w-full rounded-2xl border border-white/20 px-6 py-3 pr-14 bg-white/10 backdrop-blur-md text-white placeholder-gray-300 focus:outline-none focus:border-cyan-400/50 focus:bg-white/15 transition-all duration-300 shadow-lg"

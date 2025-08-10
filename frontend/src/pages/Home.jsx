@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "../components/ProductCard";
+import { debounce } from "lodash";
+import { useOutletContext } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Sparkles,
@@ -15,9 +17,38 @@ import {
   Zap,
 } from "lucide-react";
 
-const Home = () => {
+const Home = ({ searchQuery }) => {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { searchTerm } = useOutletContext();
+   const safeSearchTerm = searchTerm ? searchTerm.trim().toLowerCase() : "";
+  // Debounced search function
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((term) => {
+        if (!term) {
+          setFilteredProducts(products);
+          return;
+        }
+        const filtered = products.filter((product) => {
+          if (!product.title || !product.location) return false;
+          return (
+            product.title.toLowerCase().includes(term) ||
+            product.location.toLowerCase().includes(term)
+          );
+        });
+        setFilteredProducts(filtered);
+      }, 300),
+    [products]
+  );
+
+  // Trigger debounced search when search term changes
+  useEffect(() => {
+    debouncedSearch(safeSearchTerm);
+    return () => debouncedSearch.cancel(); // Cleanup on unmount
+  }, [safeSearchTerm, debouncedSearch]);
+
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 300], [0, -50]);
   const y2 = useTransform(scrollY, [0, 300], [0, 50]);
@@ -37,6 +68,23 @@ const Home = () => {
     fetchProducts();
   }, []);
 
+  
+
+   useEffect(() => {
+    if (!searchTerm) {
+      setFilteredProducts(products);
+      return;
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    const filtered = products.filter(product => 
+      product.title?.toLowerCase().includes(term) || 
+      product.location?.toLowerCase().includes(term)
+    );
+    
+    setFilteredProducts(filtered);
+  }, [searchTerm, products]);
+ 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -132,8 +180,6 @@ const Home = () => {
           variants={containerVariants}
           className="relative z-10 max-w-6xl mx-auto text-center space-y-8"
         >
-        
-
           {/* Main Heading */}
           <motion.div variants={itemVariants} className="space-y-6">
             <h1 className="text-7xl md:text-8xl lg:text-9xl font-black tracking-tight">
@@ -403,7 +449,7 @@ const Home = () => {
               variants={containerVariants}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
             >
-              {products.map((product, index) => (
+              {filteredProducts.map((product, index) => (
                 <motion.div
                   key={product._id}
                   variants={itemVariants}
