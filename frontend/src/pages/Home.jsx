@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { debounce } from "lodash";
 import { useOutletContext } from "react-router-dom";
@@ -22,7 +23,27 @@ const Home = ({ searchQuery }) => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { searchTerm } = useOutletContext();
-   const safeSearchTerm = searchTerm ? searchTerm.trim().toLowerCase() : "";
+  const safeSearchTerm = searchTerm ? searchTerm.trim().toLowerCase() : "";
+
+  // Create ref for products section
+  const productsRef = useRef(null);
+
+  // Function to scroll to products section
+    const navigate = useNavigate();
+  const scrollToProducts = () => {
+    productsRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+
+  // function to handle start selling
+
+  const handleStartSelling = () => {
+    navigate("/sell");
+  }
+
   // Debounced search function
   const debouncedSearch = useMemo(
     () =>
@@ -68,23 +89,22 @@ const Home = ({ searchQuery }) => {
     fetchProducts();
   }, []);
 
-  
-
-   useEffect(() => {
+  useEffect(() => {
     if (!searchTerm) {
       setFilteredProducts(products);
       return;
     }
 
     const term = searchTerm.toLowerCase().trim();
-    const filtered = products.filter(product => 
-      product.title?.toLowerCase().includes(term) || 
-      product.location?.toLowerCase().includes(term)
+    const filtered = products.filter(
+      (product) =>
+        product.title?.toLowerCase().includes(term) ||
+        product.location?.toLowerCase().includes(term)
     );
-    
+
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
- 
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -226,6 +246,7 @@ const Home = ({ searchQuery }) => {
             className="flex flex-col sm:flex-row gap-6 justify-center items-center mt-12"
           >
             <motion.button
+              onClick={scrollToProducts}
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className="group relative px-10 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl font-bold text-lg shadow-2xl shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 overflow-hidden"
@@ -242,6 +263,7 @@ const Home = ({ searchQuery }) => {
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               className="group px-10 py-5 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl font-bold text-lg hover:bg-white/20 transition-all duration-300"
+              onClick={handleStartSelling}
             >
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-6 h-6 text-emerald-400" />
@@ -289,7 +311,8 @@ const Home = ({ searchQuery }) => {
           <motion.div
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center"
+            className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center cursor-pointer"
+            onClick={scrollToProducts}
           >
             <motion.div
               animate={{ y: [0, 12, 0] }}
@@ -362,7 +385,7 @@ const Home = ({ searchQuery }) => {
       </section>
 
       {/* Products Section */}
-      <section className="py-24 px-6 relative">
+      <section ref={productsRef} className="py-24 px-6 relative">
         <motion.div
           initial="hidden"
           whileInView="visible"
