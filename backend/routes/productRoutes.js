@@ -5,14 +5,14 @@ const path = require("path");
 
 const router = express.Router();
 
-// ✅ Multer Setup for Image Uploads
+//  Multer Setup for Image Uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, "uploads/"),
   filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const upload = multer({ storage });
 
-// ✅ Add New Product
+//  Add New Product
 router.post("/", upload.single("image"), async (req, res) => {
   try {
     const { title, price, location, description, userId } = req.body;
@@ -24,7 +24,7 @@ router.post("/", upload.single("image"), async (req, res) => {
       location,
       description,
       imageUrl,
-      user: userId, // ⚠️ Note: Ensure your schema uses `user` and not `userId`
+      user: req.userId, 
     });
 
     await product.save();
@@ -37,7 +37,7 @@ router.post("/", upload.single("image"), async (req, res) => {
   }
 });
 
-// ✅ Get All Products (For Homepage or Shop View)
+//  Get All Products (For Homepage or Shop View)
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find().sort({ createdAt: -1 });
@@ -49,7 +49,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// ✅ Get Products by Specific User
+//  Get Products by Specific User
 router.get("/users/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -62,7 +62,7 @@ router.get("/users/:userId", async (req, res) => {
   }
 });
 
-// ✅ Get Single Product by ID
+//  Get Single Product by ID
 router.get("/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);

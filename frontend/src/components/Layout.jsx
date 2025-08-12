@@ -2,12 +2,34 @@ import { Outlet } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Sparkles, Zap, Heart, Code, Users, Shield } from "lucide-react";
 import NavBar from "./NavBar";
-import { useState } from "react";
+import { useState, useRef,useEffect } from "react";
 
 const Layout = () => {
   const { scrollY } = useScroll();
   const footerY = useTransform(scrollY, [0, 300], [0, -20]);
   const [searchTerm, setSearchTerm] = useState("");
+  const productsRef = useRef(null);
+  const [triggerScroll, setTriggerScroll] = useState(false);
+  
+    useEffect(() => {
+      if (triggerScroll && productsRef.current) {
+        const yOffset = 100; // Adjust this value (negative = scroll up)
+        const element = productsRef.current;
+        const y =
+          element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+
+        window.scrollTo({
+          top: y,
+          behavior: "smooth",
+        });
+
+        setTriggerScroll(false);
+      }
+    }, [triggerScroll]);
+
+    const scrollToProducts = () => {
+      setTriggerScroll(true);
+    };
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -99,7 +121,11 @@ const Layout = () => {
         transition={{ duration: 0.8, ease: "easeOut" }}
         className="relative z-50"
       >
-        <NavBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
+        <NavBar
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          scrollToProducts={scrollToProducts}
+        />
       </motion.div>
 
       {/* Main Content */}
@@ -109,7 +135,9 @@ const Layout = () => {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="flex-grow relative z-10"
       >
-        <Outlet context={{ searchTerm }} />
+        <Outlet
+          context={{ searchTerm, setSearchTerm, productsRef, scrollToProducts }}
+        />
       </motion.main>
 
       {/* Futuristic Footer */}

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
-import { debounce } from "lodash";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+
 import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Sparkles,
@@ -22,14 +23,14 @@ const Home = ({ searchQuery }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { searchTerm } = useOutletContext();
-  const safeSearchTerm = searchTerm ? searchTerm.trim().toLowerCase() : "";
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 300], [0, -50]);
+  const y2 = useTransform(scrollY, [0, 300], [0, 50]);
+  const [isSearching, setIsSearching] = useState(false);
+  const { searchTerm, setSearchTerm, productsRef } = useOutletContext();
+  const { user } = useAuth();
 
-  // Create ref for products section
-  const productsRef = useRef(null);
-
-  // Function to scroll to products section
-    const navigate = useNavigate();
+  // Function to scroll to products section - MOVED BEFORE USAGE
   const scrollToProducts = () => {
     productsRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -37,73 +38,133 @@ const Home = ({ searchQuery }) => {
     });
   };
 
+  useOutletContext({
+    ...useOutletContext(),
+    scrollToProducts,
+  });
 
-  // function to handle start selling
-
+  // Function to handle start selling
   const handleStartSelling = () => {
-    navigate("/sell");
-  }
+    if (user) {
+      navigate("/sell"); // go to selling page
+    } else {
+      navigate("/login"); // go to login page
+    }
+  };
 
-  // Debounced search function
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((term) => {
-        if (!term) {
-          setFilteredProducts(products);
-          return;
-        }
-        const filtered = products.filter((product) => {
-          if (!product.title || !product.location) return false;
-          return (
-            product.title.toLowerCase().includes(term) ||
-            product.location.toLowerCase().includes(term)
-          );
-        });
-        setFilteredProducts(filtered);
-      }, 300),
-    [products]
-  );
+  // Create ref for products section
+  const navigate = useNavigate();
 
-  // Trigger debounced search when search term changes
-  useEffect(() => {
-    debouncedSearch(safeSearchTerm);
-    return () => debouncedSearch.cancel(); // Cleanup on unmount
-  }, [safeSearchTerm, debouncedSearch]);
-
-  const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 300], [0, -50]);
-  const y2 = useTransform(scrollY, [0, 300], [0, 50]);
-
+  // Sync filteredProducts with products whenever products change
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        setIsLoading(true);
         const res = await fetch("http://localhost:5000/api/products");
         const data = await res.json();
         setProducts(data);
+        setFilteredProducts(data); // Initialize filtered products
       } catch (error) {
         console.error("Failed to fetch products:", error);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchProducts();
   }, []);
 
+  // Simplified search implementation
   useEffect(() => {
-    if (!searchTerm) {
+    if (!searchTerm || searchTerm.trim() === "") {
       setFilteredProducts(products);
       return;
     }
 
-    const term = searchTerm.toLowerCase().trim();
-    const filtered = products.filter(
-      (product) =>
-        product.title?.toLowerCase().includes(term) ||
-        product.location?.toLowerCase().includes(term)
-    );
+    const timer = setTimeout(() => {
+      const filtered = products.filter((product) => {
+        const searchFields = [
+          product.title?.toLowerCase(),
+          product.description?.toLowerCase(),
+          product.location?.toLowerCase(),
+          product.category?.toLowerCase(),
+        ].filter(Boolean);
 
-    setFilteredProducts(filtered);
+        return searchFields.some((field) =>
+          field.includes(searchTerm.toLowerCase())
+        );
+      });
+      setFilteredProducts(filtered);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchTerm, products]);
+  // Search effect with loading state
+  useEffect(() => {
+    if (!searchTerm || searchTerm.trim() === "") {
+      setFilteredProducts(products);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(() => {
+      const filtered = products.filter((product) => {
+        const searchFields = [
+          product.title?.toLowerCase(),
+          product.description?.toLowerCase(),
+          product.location?.toLowerCase(),
+          product.category?.toLowerCase(),
+        ].filter(Boolean);
+
+        return searchFields.some((field) =>
+          field.includes(searchTerm.toLowerCase())
+        );
+      });
+      setFilteredProducts(filtered);
+      setIsSearching(false);
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      setIsSearching(false);
+    };
+  }, [searchTerm, products]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        {/* Your loading spinner */}
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
+  if (isSearching) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          <p className="text-cyan-400">Searching products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!isLoading && products.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h2 className="text-2xl font-bold mb-4">No products available</h2>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-purple-600 rounded-md hover:bg-purple-700 transition"
+        >
+          Refresh
+        </button>
+      </div>
+    );
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },

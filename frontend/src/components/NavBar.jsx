@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { useOutletContext } from "react-router-dom";
 import {
   Search,
   User,
@@ -13,7 +14,7 @@ import {
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
-const NavBar = ({ searchTerm, setSearchTerm }) => {
+const NavBar = ({ searchTerm, setSearchTerm, scrollToProducts }) => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -21,6 +22,28 @@ const NavBar = ({ searchTerm, setSearchTerm }) => {
   const { scrollY } = useScroll();
   const navbarOpacity = useTransform(scrollY, [0, 100], [0.95, 0.98]);
   const navbarBlur = useTransform(scrollY, [0, 100], [10, 20]);
+  const [localSearch, setLocalSearch] = useState("");
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
+
+  const handleSellClick = () => {
+    if (user) {
+      navigate("/sell");
+    } else {
+      setShowLoginAlert(true);
+      setTimeout(() => setShowLoginAlert(false), 3000); // Hide after 3 seconds
+    }
+  };
+  const handleSearch = () => {
+    setSearchTerm(localSearch);
+    scrollToProducts();
+    setLocalSearch("");
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -136,16 +159,18 @@ const NavBar = ({ searchTerm, setSearchTerm }) => {
                 <input
                   type="text"
                   placeholder="Search for textbooks, laptops, phones..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
+                  onKeyDown={handleKeyDown}
                   className="w-full rounded-2xl border border-white/20 px-6 py-3 pr-14 bg-white/10 backdrop-blur-md text-white placeholder-gray-300 focus:outline-none focus:border-cyan-400/50 focus:bg-white/15 transition-all duration-300 shadow-lg"
                 />
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500 transition-all duration-300 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40"
+                  onClick={() => setSearchTerm(localSearch)}
                 >
                   <Search className="w-4 h-4" />
                 </motion.button>
@@ -231,8 +256,8 @@ const NavBar = ({ searchTerm, setSearchTerm }) => {
             )}
 
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Link
-                to="/sell"
+              <button
+                onClick={handleSellClick}
                 className="group px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl hover:from-emerald-400 hover:to-teal-500 transition-all duration-300 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 flex items-center gap-2"
               >
                 <motion.div
@@ -253,13 +278,25 @@ const NavBar = ({ searchTerm, setSearchTerm }) => {
                 >
                   💰
                 </motion.div>
-              </Link>
+              </button>
             </motion.div>
           </motion.div>
         </div>
+
+        {showLoginAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded"
+          >
+            Please log in to sell items.
+          </motion.div>
+        )}
       </div>
     </motion.nav>
-  );
+  ); 
 };
 
 export default NavBar;
