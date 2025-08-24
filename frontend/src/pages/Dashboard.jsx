@@ -5,58 +5,159 @@ import { useNavigate } from "react-router-dom";
 const Dashboard = () => {
   const [user, setUser] = useState(null);
   const [products, setProducts] = useState([]);
-  const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
   const [editingProduct, setEditingProduct] = useState(null);
-useEffect(() => {
-  if (editingProduct) {
-    document.body.classList.add("no-scroll");
-  } else {
-    document.body.classList.remove("no-scroll");
-  }
-}, [editingProduct]);
-
-
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("userInfo"));
-
-    if (!storedUser) return navigate("/login");
-
-    setUser(storedUser);
-    fetchUserProducts(storedUser.id);
-  }, []);
+  const navigate = useNavigate();
 
   const fetchUserProducts = async (userId) => {
     try {
       const res = await fetch(
         `http://localhost:5000/api/products/users/${userId}`
       );
-
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await res.text();
-        throw new Error(`Expected JSON, got: ${text.slice(0, 100)}...`);
-      }
-
-      if (!res.ok) throw new Error("Failed to fetch products");
-
       const data = await res.json();
       setProducts(data);
     } catch (err) {
       console.error("Error fetching products:", err.message);
     }
   };
+  // Fetch user's products
+  const fetchOrders = async (userId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/orders/seller/${userId}`,
+        {
+          // Changed endpoint
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = await res.json();
+      setOrders(data);
+    } catch (err) {
+      console.error("Error fetching orders:", err.message);
+    }
+  };
 
+  // Load user and fetch data
+  useEffect(() => {
+    let storedUser;
+    try {
+      storedUser = JSON.parse(localStorage.getItem("userInfo"));
+    } catch (error) {
+      console.error("Error parsing userInfo:", error);
+      return navigate("/login");
+    }
+
+    // Get token
+    const token = localStorage.getItem("token");
+
+    // Check if we have both user info and token
+    const userId = storedUser?.id || storedUser?._id;
+    if (!userId || !token) {
+      return navigate("/login");
+    }
+
+    setUser(storedUser);
+    fetchUserProducts(userId);
+    fetchOrders(userId);
+
+    // ------------------- SSE CONNECTION -------------------
+    const evtSource = new EventSource(
+      `http://localhost:5000/api/notifications/stream/${storedUser.id}`
+    );
+
+    evtSource.onmessage = (event) => {
+      const notification = JSON.parse(event.data);
+
+      if (notification.clear) {
+        setOrders([]);
+      } else {
+        setOrders((prev) => [notification, ...prev]);
+        showToast(notification.message);
+      }
+    };
+
+    evtSource.onerror = (err) => {
+      console.error("SSE error:", err);
+      evtSource.close();
+    };
+
+    return () => evtSource.close();
+  }, [navigate]);
+
+  // Scroll lock when editing product
+  useEffect(() => {
+    if (editingProduct) document.body.classList.add("no-scroll");
+    else document.body.classList.remove("no-scroll");
+  }, [editingProduct]);
+
+  // Clear notifications
+  const clearNotifications = async () => {
+    try {
+      await fetch(`http://localhost:5000/api/orders/clear/${user.id}`, {
+        method: "DELETE",
+      });
+      setOrders([]);
+    } catch (err) {
+      console.error("Error clearing notifications:", err);
+    }
+  };
+
+  // Mark as read
+  const markAsRead = async (notificationId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `http://localhost:5000/api/orders/${notificationId}/read`,
+        { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error("Failed to mark as read");
+      setOrders((prev) =>
+        prev.map((n) => (n._id === notificationId ? { ...n, read: true } : n))
+      );
+    } catch (err) {
+      console.error("Error marking notification as read:", err.message);
+    }
+  };
+
+  // Contact buyer
+  const contactBuyer = async (buyerEmail, productTitle) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/contact-buyer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerEmail: user?.email,
+          buyerEmail,
+          productTitle,
+        }),
+      });
+      const data = await res.json();
+      alert(res.ok ? "Email sent successfully!" : "Failed: " + data.message);
+    } catch (err) {
+      console.error(err);
+      alert("Error sending email");
+    }
+  };
+
+  // Toast
+  const showToast = (message) => {
+    const toast = document.createElement("div");
+    toast.className =
+      "fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg z-50";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => document.body.removeChild(toast), 3000);
+  };
+
+  // Delete a product
   const handleDelete = async (productId) => {
     try {
       const res = await fetch(
         `http://localhost:5000/api/products/${productId}`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
-
       if (!res.ok) throw new Error("Failed to delete product");
-
       setProducts(products.filter((p) => p._id !== productId));
     } catch (err) {
       console.error("Failed to delete product:", err.message);
@@ -80,10 +181,101 @@ useEffect(() => {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-fuchsia-600 to-blue-600 bg-clip-text text-transparent">
             Welcome, {user?.name}
           </h1>
-          <div className="h-12 w-12 rounded-full bg-gradient-to-r from-fuchsia-500 to-blue-500 flex items-center justify-center text-white font-bold">
-            {user?.name?.charAt(0)}
+          <div className="flex items-center gap-4">
+            {orders.length > 0 && (
+              <button
+                onClick={clearNotifications}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+              >
+                Clear Notifications
+              </button>
+            )}
+            <div className="h-12 w-12 rounded-full bg-gradient-to-r from-fuchsia-500 to-blue-500 flex items-center justify-center text-white font-bold">
+              {user?.name?.charAt(0)}
+            </div>
           </div>
         </motion.div>
+        {/* Notifications Section */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-8">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold text-gray-800">
+              Notifications
+            </h2>
+            {orders.some((n) => !n.read) && (
+              <button
+                onClick={clearNotifications}
+                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+              >
+                Clear Notifications
+              </button>
+            )}
+            {orders.some((n) => !n.read) && (
+              <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                {orders.filter((n) => !n.read).length}
+              </span>
+            )}
+          </div>
+
+          {orders.filter((n) => !n.read).length === 0 ? (
+            <p className="text-gray-500">No new notifications</p>
+          ) : (
+            <ul className="space-y-3 max-h-80 overflow-y-auto">
+              {orders
+                .filter((n) => !n.read) // Only show unread notifications
+                .map((n) => (
+                  <motion.li
+                    key={n._id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="p-4 border rounded-lg flex justify-between items-center bg-blue-50 border-blue-200"
+                  >
+                    <div className="flex-1">
+                      <p className="text-blue-700 font-medium">{n.message}</p>
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-600">
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                          Product: {n.productId?.title}
+                        </span>
+                        <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">
+                          Price: ₹{n.price}
+                        </span>
+                        <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded-full font-medium">
+                          Buyer: {n.buyerId?.name}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        contactBuyer(n.buyerId.email, n.productId.title)
+                      }
+                      className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200"
+                    >
+                      Contact Buyer
+                    </button>
+
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm text-gray-400 mb-2">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </span>
+                      {!n.read && (
+                        <button
+                          onClick={() => markAsRead(n._id)}
+                          disabled={n.read}
+                          className={`text-xs px-2 py-1 rounded ${
+                            n.read
+                              ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                              : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                          }`}
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </div>
+                  </motion.li>
+                ))}
+            </ul>
+          )}
+        </div>
 
         {/* Products Section */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
@@ -376,6 +568,5 @@ useEffect(() => {
     </motion.div>
   );
 };
-
 
 export default Dashboard;

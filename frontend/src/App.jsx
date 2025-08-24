@@ -13,8 +13,11 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import { useAuth } from "./contexts/AuthContext";
 import Cursor from "./components/Cursor";
+
 const App = () => {
   const { user } = useAuth();
+
+
   return (
     <Router>
       <Cursor />
